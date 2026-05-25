@@ -1,4 +1,4 @@
-PAYMENT_KEYWORKDS = [
+PAYMENT_KEYWORDS = [
     # Core payment words
     "payment", "paid", "pay", "paying", "payout",
     "payin", "transaction", "txn", "transfer", "transferred",
@@ -99,6 +99,10 @@ NOISE_KEYWORDS = [
     "onesignal", "pushwoosh", "firebase-messaging",
     # Cookie consent tools
     "cookiebot", "onetrust", "cookiepro"
+    # javacript files, bebug/analytics, CDN challenge scripts
+    "appdebuganalytics", "challenge-platform", "hawkeye", 
+    ".js", ".min.js", "vendors.js", "client.js", "common.js",
+    "homepage.js", "cdn-cgi"
     ]
 
 PAYMENT_GATEWAYS = [
@@ -149,4 +153,4 @@ PAYMENT_GATEWAYS = [
     ]
 
 import re
-UPT_PATTERN = re.compile(r'[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}')
+UPI_PATTERN = re.compile(r'[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}')
