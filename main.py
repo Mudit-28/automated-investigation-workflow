@@ -2,16 +2,18 @@ import asyncio
 from core.browser import BrowserManager
 from core.network_monitor import NetworkMonitor
 from core.extractor import Extractor
+from core.storage import Storage
 from modules.screenshots import Screenshot
 from modules.html_capture import HTMLCapture
 
 
 async def main():
-    url = "https://razorpay.com"
+    url = "https://www.dream11.com"
     screenshot = Screenshot()
     html_capture = HTMLCapture()
     monitor = NetworkMonitor()
     extractor = Extractor()
+    storage = Storage()
 
     try:
         async with BrowserManager() as browser_manager:
@@ -27,7 +29,12 @@ async def main():
             page_title = await page.title()
 
             captured = monitor.get_captured()
-            summary = extractor.run(captured, html_content, page_title, url, screenshot_path)
+            summary = extractor.run(
+                captured, html_content,
+                page_title, url, screenshot_path
+            )
+
+            storage.save(summary)
 
             print(f"\n[Extraction Summary]")
             print(f"  Page Title     : {summary['page_title']}")
@@ -35,7 +42,7 @@ async def main():
             print(f"  UPI IDs Found  : {summary['all_upi_ids']}")
             print(f"  Gateways Found : {summary['all_gateways']}")
 
-            await asyncio.sleep(3)
+            await asyncio.sleep(30)
 
     except Exception as e:
         print(f"An error occurred: {e}")
