@@ -102,7 +102,9 @@ NOISE_KEYWORDS = [
     # javacript files, bebug/analytics, CDN challenge scripts
     "appdebuganalytics", "challenge-platform", "hawkeye", 
     ".js", ".min.js", "vendors.js", "client.js", "common.js",
-    "homepage.js", "cdn-cgi"
+    "homepage.js", "cdn-cgi", "lumberjack", "lumberjack-metrics", 
+    "frontend-metrics", "linkedin.com", "facebook.net", 
+    "framerstatic", "smart-assist", "/v1/track",
     ]
 
 PAYMENT_GATEWAYS = [

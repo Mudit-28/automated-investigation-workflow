@@ -6,7 +6,7 @@ class Screenshot(Capture):
         super().__init__("output/screenshots")
 
     async def capture_ss(self, page, website_name):
-        filepath = self.build_filepath(website_name, ".png")
+        filepath = self._build_filepath(website_name, ".png")
 
         await page.screenshot(path=filepath, full_page=True)
 

@@ -5,7 +5,7 @@ class HTMLCapture(Capture):
         super().__init__("output/html")
 
     async def capture_html(self, page, website_name):
-        filepath = self.build_filepath(website_name, ".html")
+        filepath = self._build_filepath(website_name, ".html")
         content = await page.content()
 
         with open(filepath, "w", encoding="utf-8") as f:
