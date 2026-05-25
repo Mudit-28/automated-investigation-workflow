@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Investigation tool outputs
+output/screenshots/
+output/html/
+output/reports/
+
+# Keep the folder structure but ignore contents
+!output/screenshots/.gitkeep
+!output/html/.gitkeep
+!output/reports/.gitkeep
