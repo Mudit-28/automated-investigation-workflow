@@ -16,7 +16,7 @@ class Storage:
     def _setup_headers(self):
         summary_headers = [
             "Website URL", "Page Title", "Total Requests",
-            "UPI IDs Found", "Gateways Found",
+            "Payment API URLs", "UPI IDs Found", "Gateways Found",
             "Screenshot Path", "Timestamp"
         ]
 
@@ -43,7 +43,6 @@ class Storage:
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = header_alignment
-            # auto width based on header text length
             sheet.column_dimensions[
                 openpyxl.utils.get_column_letter(col_num)
             ].width = max(15, len(header) + 5)
@@ -51,10 +50,17 @@ class Storage:
     def save_summary(self, summary):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        payment_urls = list(set([
+            entry.get("url", "")
+            for entry in summary.get("network_findings", [])
+            if entry.get("url")
+        ]))
+
         row = [
             summary.get("url", ""),
             summary.get("page_title", ""),
             summary.get("total_payment_requests", 0),
+            "\n".join(payment_urls),       
             ", ".join(summary.get("all_upi_ids", [])),
             ", ".join(summary.get("all_gateways", [])),
             summary.get("screenshot_path", ""),
@@ -62,6 +68,11 @@ class Storage:
         ]
 
         self.summary_sheet.append(row)
+        
+        row_num = self.summary_sheet.max_row
+        self.summary_sheet.cell(row=row_num, column=4).alignment = Alignment(
+            wrap_text=True, vertical="top"
+        )
         print(f"[Storage] Summary row saved for: {summary.get('url', '')}")
 
     def save_requests(self, summary):

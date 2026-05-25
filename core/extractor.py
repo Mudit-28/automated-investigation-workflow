@@ -33,15 +33,15 @@ class Extractor:
             combined_text = url + " " + post_data
             upi_ids = self._extract_upi(combined_text)
             gateways = self._extract_gateways(combined_text)
-            if upi_ids or gateways or entry.get("gateways_detected"):
-                extracted.append({
-                    "source": "network",
-                    "url": url,
-                    "method": entry.get("method", ""),
-                    "upi_ids_found": upi_ids,
-                    "gateways_found": gateways or entry.get("gateways_detected", []),
-                    "post_data": post_data
-                })
+
+            extracted.append({
+                "source": "network",
+                "url": url,
+                "method": entry.get("method", ""),
+                "upi_ids_found": upi_ids,
+                "gateways_found": gateways or entry.get("gateways_detected", []),
+                "post_data": post_data
+            })
         return extracted
 
     def _extract_from_html(self, html_content):

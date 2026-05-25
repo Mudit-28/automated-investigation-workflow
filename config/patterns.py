@@ -104,7 +104,8 @@ NOISE_KEYWORDS = [
     ".js", ".min.js", "vendors.js", "client.js", "common.js",
     "homepage.js", "cdn-cgi", "lumberjack", "lumberjack-metrics", 
     "frontend-metrics", "linkedin.com", "facebook.net", 
-    "framerstatic", "smart-assist", "/v1/track",
+    "framerstatic", "smart-assist","/v1/track",
+    "sentry.io", "sentry.airtel", "sentrynew"
     ]
 
 PAYMENT_GATEWAYS = [
@@ -155,4 +156,15 @@ PAYMENT_GATEWAYS = [
     ]
 
 import re
-UPI_PATTERN = re.compile(r'[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}')
+UPI_PATTERN = re.compile(
+    r'[a-zA-Z0-9.\-_]{3,256}'
+    r'@'
+    r'(paytm|okicici|okhdfcbank|okaxis|oksbi|ybl|ibl|axl|'
+    r'upi|apl|pingpay|waicici|mahb|idbi|dbs|'
+    r'freecharge|ikwik|indus|rbl|'
+    r'paytmbank|phonepe|gpay|bhim|airtel)',
+    re.IGNORECASE
+)
+UPI_PATTERN_LOOSE = re.compile(
+    r'[a-zA-Z0-9.\-_]{4,256}@[a-zA-Z]{4,20}'
+)

@@ -6,11 +6,14 @@ from core.extractor import Extractor
 from core.storage import Storage
 from modules.screenshots import Screenshot
 from modules.html_capture import HTMLCapture
+from modules.page_monitor import PageMonitor
+
 
 async def run_investigation(url):
     screenshot = Screenshot()
     html_capture = HTMLCapture()
     monitor = NetworkMonitor()
+    page_monitor = PageMonitor(monitor)
     extractor = Extractor()
     storage = Storage()
 
@@ -19,29 +22,38 @@ async def run_investigation(url):
             page = await browser_manager.new_page()
 
             monitor.attach(page)
+            page_monitor.attach(page, url)
+            page_monitor.attach_context(browser_manager.context, url)
 
             print(f"\n[Investigation] Starting: {url}")
             await page.goto(url)
             await page.wait_for_load_state("networkidle")
             print(f"[Investigation] Page loaded")
 
-            screenshot_path = await screenshot.capture_ss(page, url)
+            await screenshot.capture_ss(page, url)
             print(f"[Main] Captured screenshot.")
-            html_content = await page.content()
             await html_capture.capture_html(page, url)
             print(f"[Main] Captured HTML content.")
-            page_title = await page.title()
 
             print(f"\n[Investigation] Manual exploration window — 30 seconds")
             print(f"[Investigation] Navigate to deposit/payment pages now...")
             await asyncio.sleep(30)
 
-            await screenshot.capture_ss(page, url)
+            # to capture final state after manual navigation
+            print(f"[Investigation] Capturing final page state...")
+            final_html = await page.content()
+            final_title = await page.title()
+            final_screenshot_path = await screenshot.capture_ss(page, page.url)
+            await html_capture.capture_html(page, page.url)
 
             captured = monitor.get_captured()
+            print(f"\n[Debug] Total captured requests: {len(captured)}")
+            for r in captured[:5]:
+                print(f"  → {r.get('type')} | {r.get('url', '')[:80]}")
+
             summary = extractor.run(
-                captured, html_content,
-                page_title, url, screenshot_path
+                captured, final_html,
+                final_title, url, final_screenshot_path
             )
             storage.save(summary)
 
@@ -58,6 +70,7 @@ async def run_investigation(url):
 
     except Exception as e:
         print(f"[Error] {e}")
+
 
 def main():
     if len(sys.argv) < 2:
