@@ -19,6 +19,11 @@ async def run_investigation(url):
 
     try:
         async with BrowserManager() as browser_manager:
+            screenshot = Screenshot(url)
+            html_capture = HTMLCapture(url)
+            monitor = NetworkMonitor()
+            page_monitor = PageMonitor(monitor, screenshot, html_capture)
+
             page = await browser_manager.new_page()
 
             monitor.attach(page)

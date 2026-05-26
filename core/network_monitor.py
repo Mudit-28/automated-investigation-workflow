@@ -13,8 +13,11 @@ class NetworkMonitor:
 
     def _detect_gateways(self, url):
         url_lower = url.lower()
-        found = [g for g in PAYMENT_GATEWAYS if g in url_lower]
-        return found if found else []
+        found = []
+        for gateway_name, patterns in PAYMENT_GATEWAYS.items():
+            if any(p in url_lower for p in patterns):
+                found.append(gateway_name)
+        return found
 
     def _on_request(self, request):
         url = request.url
