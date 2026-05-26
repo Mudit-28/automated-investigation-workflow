@@ -1,3 +1,4 @@
+import asyncio
 from config.patterns import PAYMENT_KEYWORDS, NOISE_KEYWORDS, PAYMENT_GATEWAYS, UPI_PATTERN
 
 
@@ -34,21 +35,31 @@ class NetworkMonitor:
         self.captured_requests.append(entry)
         print(f"[Network] Captured: {request.method} {url}")
 
-    def _on_response(self, response):
+    async def _on_response(self, response):
         url = response.url
         if not self._is_relevant(url):
             return
+        
+        body_text = None
+        try:
+            body_text = await response.text()
+        except Exception:
+            pass  
+
         entry = {
             "type": "response",
             "url": url,
             "status": response.status,
             "gateways_detected": self._detect_gateways(url),
+            "response_body": body_text,
         }
         self.captured_requests.append(entry)
 
     def attach(self, page):
         page.on("request", self._on_request)
-        page.on("response", self._on_response)
+        page.on("response", lambda response: asyncio.ensure_future(
+            self._on_response(response)
+        ))
         print("[Network Monitor] Listening for payment-related requests...")
 
     def get_captured(self):

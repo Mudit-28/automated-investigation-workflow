@@ -1,5 +1,11 @@
-import re
-from config.patterns import UPI_PATTERN, PAYMENT_GATEWAYS, PAYMENT_KEYWORDS
+from urllib.parse import unquote
+from config.patterns import UPI_PATTERN, UPI_PATTERN_LOOSE, PAYMENT_GATEWAYS, PAYMENT_KEYWORDS
+
+
+COMMON_EMAIL_DOMAINS = {
+    "gmail", "yahoo", "hotmail", "outlook", "icloud",
+    "rediffmail", "protonmail", "live", "msn"
+}
 
 
 class Extractor:
@@ -9,14 +15,14 @@ class Extractor:
     def _extract_upi(self, text):
         if not text:
             return []
-        matches = UPI_PATTERN.findall(text)
-        seen = set()
-        unique = []
-        for match in matches:
-            if match not in seen:
-                seen.add(match)
-                unique.append(match)
-        return unique
+        decoded_text = unquote(text)
+        strict = set(UPI_PATTERN.findall(decoded_text))
+        loose = set(UPI_PATTERN_LOOSE.findall(decoded_text))
+        filtered_loose = {
+            m for m in loose
+            if m.split("@")[-1].lower() not in COMMON_EMAIL_DOMAINS
+        }
+        return sorted(list(strict | filtered_loose))
 
     def _extract_gateways(self, text):
         if not text:
@@ -33,7 +39,9 @@ class Extractor:
         for entry in captured_requests:
             url = entry.get("url", "")
             post_data = entry.get("post_data", "") or ""
-            combined_text = url + " " + post_data
+            response_body = entry.get("response_body", "") or ""
+            combined_text = url + " " + post_data + " " + response_body
+
             upi_ids = self._extract_upi(combined_text)
             gateways = self._extract_gateways(combined_text)
 
@@ -43,7 +51,8 @@ class Extractor:
                 "method": entry.get("method", ""),
                 "upi_ids_found": upi_ids,
                 "gateways_found": gateways or entry.get("gateways_detected", []),
-                "post_data": post_data
+                "post_data": post_data,
+                "response_body": response_body
             })
         return extracted
 

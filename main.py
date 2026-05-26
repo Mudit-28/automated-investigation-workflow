@@ -44,7 +44,9 @@ async def run_investigation(url):
 
             print(f"\n[Investigation] Manual exploration window — 60 seconds")
             print(f"[Investigation] Navigate to deposit/payment pages now...")
+
             await asyncio.sleep(60)
+            page_monitor.stop()
 
             print(f"[Investigation] Capturing final page state...")
             final_html = await page.content()

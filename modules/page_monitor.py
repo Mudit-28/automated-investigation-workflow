@@ -11,7 +11,11 @@ class PageMonitor:
         self.last_screenshot_time = 0     
         self.screenshot_cooldown = 4      
         self.initial_url = None           
-        self.page_ready = False           
+        self.page_ready = False
+        self._active = True 
+
+    def stop(self):
+        self._active = False          
 
     def _can_screenshot(self):
         now = time.time()
@@ -72,6 +76,8 @@ class PageMonitor:
             print(f"[Page Monitor] Popup error: {e}")
 
     async def _on_navigation(self, frame, page):
+        if not self._active:  
+            return
         try:
             if not self.page_ready:
                 return
@@ -128,7 +134,7 @@ class PageMonitor:
 
     async def _poll_dom_changes(self, page):
         await asyncio.sleep(5)
-        while True:
+        while self._active:             
             try:
                 await asyncio.sleep(3)
                 changed = await page.evaluate(
@@ -151,6 +157,8 @@ class PageMonitor:
         print(f"[Page Monitor] Context listener attached")
 
     async def _on_new_context_page(self, page):
+        if not self._active:  
+            return
         try:
             print(f"[Page Monitor] New context page detected")
             await page.wait_for_load_state("domcontentloaded")
