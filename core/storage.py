@@ -5,11 +5,11 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
 
-HEADER_BG     = "1F4E79"   
-HEADER_FG     = "FFFFFF"   
-UPI_HIT_BG    = "FFD966"   
-GATEWAY_HIT_BG = "C6EFCE"  
-QR_HIT_BG     = "F4B942"  
+HEADER_BG      = "1F4E79"   # dark blue
+HEADER_FG      = "FFFFFF"   # white
+UPI_HIT_BG     = "FFD966"   # yellow  — UPI ID found
+GATEWAY_HIT_BG = "C6EFCE"   # green   — gateway detected, no UPI
+QR_HIT_BG      = "F4B942"   # orange  — QR / payment initiation endpoint
 
 
 class Storage:
@@ -22,7 +22,7 @@ class Storage:
         self.requests_sheet = self.workbook.create_sheet("Network Requests")
         self._setup_headers()
 
-    # Header setup
+    # ── Header setup ─────────────────────────────────────────────────────────
 
     def _setup_headers(self):
         summary_headers = [
@@ -35,9 +35,9 @@ class Storage:
         request_headers = [
             "Website URL", "Type", "Method", "API Endpoint",
             "Status", "Gateways Detected", "UPI IDs Found",
-            "Post Data", "Response Body", "Timestamp"
+            "Post Data", "Response Body", "QR Decoded", "Timestamp"
         ]
-        request_widths = [30, 12, 10, 55, 10, 28, 28, 40, 60, 22]
+        request_widths = [30, 12, 10, 55, 10, 28, 28, 40, 60, 45, 22]
 
         self._write_headers(self.summary_sheet, summary_headers, summary_widths)
         self._write_headers(self.requests_sheet, request_headers, request_widths)
@@ -47,9 +47,7 @@ class Storage:
             (self.requests_sheet, request_headers)
         ]:
             sheet.freeze_panes = "A2"
-            sheet.auto_filter.ref = (
-                f"A1:{get_column_letter(len(headers))}1"
-            )
+            sheet.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
 
     def _write_headers(self, sheet, headers, widths):
         header_font      = Font(bold=True, color=HEADER_FG)
@@ -65,7 +63,7 @@ class Storage:
 
         sheet.row_dimensions[1].height = 20
 
-    # Summary sheet
+    # ── Summary sheet ─────────────────────────────────────────────────────────
 
     def save_summary(self, summary):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -94,7 +92,7 @@ class Storage:
         row_num = self.summary_sheet.max_row
 
         self.summary_sheet.row_dimensions[row_num].height = 100
-        for col in [4, 5, 6]: 
+        for col in [4, 5, 6]:
             self.summary_sheet.cell(row=row_num, column=col).alignment = Alignment(
                 wrap_text=True, vertical="top"
             )
@@ -106,7 +104,7 @@ class Storage:
 
         print(f"[Storage] Summary row saved for: {summary.get('url', '')}")
 
-    # Network Requests sheet
+    # ── Network Requests sheet ────────────────────────────────────────────────
 
     def save_requests(self, summary):
         timestamp   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -114,8 +112,9 @@ class Storage:
         QR_KEYWORDS = ["qr-code", "qr/", "/qr", "initiate/qr", "payment/initiate"]
 
         for entry in summary.get("network_findings", []):
-            upi_ids  = entry.get("upi_ids_found", [])
-            gateways = entry.get("gateways_found", [])
+            upi_ids    = entry.get("upi_ids_found", [])
+            gateways   = entry.get("gateways_found", [])
+            qr_decoded = entry.get("qr_decoded", "") or ""
 
             row_data = [
                 website_url,
@@ -127,28 +126,30 @@ class Storage:
                 ", ".join(upi_ids),
                 entry.get("post_data", "") or "",
                 entry.get("response_body", "") or "",
+                qr_decoded,
                 timestamp
             ]
 
             self.requests_sheet.append(row_data)
             row_num = self.requests_sheet.max_row
 
+            # Highlight priority: UPI found > QR endpoint > gateway > none
             is_qr = any(k in entry.get("url", "").lower() for k in QR_KEYWORDS)
 
-            if is_qr:
-                fill = PatternFill("solid", fgColor=QR_HIT_BG)
-            elif upi_ids:
+            if upi_ids:
                 fill = PatternFill("solid", fgColor=UPI_HIT_BG)
+            elif is_qr or qr_decoded:
+                fill = PatternFill("solid", fgColor=QR_HIT_BG)
             elif gateways:
                 fill = PatternFill("solid", fgColor=GATEWAY_HIT_BG)
             else:
                 fill = None
 
             if fill:
-                for col in range(1, 11):
+                for col in range(1, 12):
                     self.requests_sheet.cell(row=row_num, column=col).fill = fill
 
-            for col in [4, 8, 9]:
+            for col in [4, 8, 9, 10]:
                 self.requests_sheet.cell(row=row_num, column=col).alignment = Alignment(
                     wrap_text=True, vertical="top"
                 )
@@ -157,7 +158,7 @@ class Storage:
 
         print(f"[Storage] {len(summary.get('network_findings', []))} request rows saved")
 
-    # Save file
+    # ── Save file ─────────────────────────────────────────────────────────────
 
     def save(self, summary):
         self.save_summary(summary)
@@ -166,11 +167,11 @@ class Storage:
 
     def _write_file(self, summary):
         from urllib.parse import urlparse
-        parsed      = urlparse(summary.get("url", ""))
+        parsed       = urlparse(summary.get("url", ""))
         website_name = parsed.netloc.replace(".", "_").replace("www_", "")
-        timestamp   = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename    = f"{website_name}_investigation_{timestamp}.xlsx"
-        filepath    = os.path.join(self.output_dir, filename)
+        timestamp    = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename     = f"{website_name}_investigation_{timestamp}.xlsx"
+        filepath     = os.path.join(self.output_dir, filename)
         self.workbook.save(filepath)
         print(f"[Storage] Excel report saved: {filepath}")
         return filepath

@@ -26,6 +26,24 @@ class Extractor:
         }
         return sorted(list(strict | filtered_loose))
 
+    def _extract_upi_from_qr(self, qr_decoded):
+        """
+        Directly extract the UPI ID from a decoded QR string.
+        UPI deep links look like:
+          upi://pay?pa=merchant@bank&pn=Name&am=100&cu=INR
+        The pa= parameter is the merchant UPI ID.
+        """
+        if not qr_decoded:
+            return []
+        try:
+            if "pa=" in qr_decoded:
+                pa_value = qr_decoded.split("pa=")[1].split("&")[0].strip()
+                if pa_value and "@" in pa_value:
+                    return [pa_value]
+        except Exception:
+            pass
+        return self._extract_upi(qr_decoded)
+
     def _extract_gateways(self, text):
         if not text:
             return []
@@ -39,12 +57,17 @@ class Extractor:
     def _extract_from_requests(self, captured_requests):
         extracted = []
         for entry in captured_requests:
-            url = entry.get("url", "")
-            post_data = entry.get("post_data", "") or ""
+            url           = entry.get("url", "")
+            post_data     = entry.get("post_data", "") or ""
             response_body = entry.get("response_body", "") or ""
-            combined_text = url + " " + post_data + " " + response_body
+            qr_decoded    = entry.get("qr_decoded", "") or ""
 
-            upi_ids = self._extract_upi(combined_text)
+            combined_text = url + " " + post_data + " " + response_body + " " + qr_decoded
+
+            upi_ids    = self._extract_upi(combined_text)
+            qr_upi_ids = self._extract_upi_from_qr(qr_decoded)
+            upi_ids    = sorted(list(set(upi_ids + qr_upi_ids)))
+
             gateways = self._extract_gateways(combined_text)
 
             extracted.append({
@@ -54,14 +77,15 @@ class Extractor:
                 "upi_ids_found": upi_ids,
                 "gateways_found": gateways or entry.get("gateways_detected", []),
                 "post_data": post_data,
-                "response_body": response_body
+                "response_body": response_body,
+                "qr_decoded": qr_decoded
             })
         return extracted
 
     def _extract_from_html(self, html_content):
         if not html_content:
             return {}
-        upi_ids = self._extract_upi(html_content)
+        upi_ids  = self._extract_upi(html_content)
         gateways = self._extract_gateways(html_content)
         html_lower = html_content.lower()
         keywords_found = [k for k in PAYMENT_KEYWORDS if k in html_lower]
@@ -74,7 +98,7 @@ class Extractor:
 
     def run(self, captured_requests, html_content, page_title, url, screenshot_path):
         network_findings = self._extract_from_requests(captured_requests)
-        html_findings = self._extract_from_html(html_content)
+        html_findings    = self._extract_from_html(html_content)
         summary = {
             "url": url,
             "page_title": page_title,
