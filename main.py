@@ -35,9 +35,9 @@ async def run_investigation(url):
             await html_capture.capture_html(page, url)
             print(f"[Main] Captured HTML content.")
 
-            print(f"\n[Investigation] Manual exploration window — 30 seconds")
+            print(f"\n[Investigation] Manual exploration window — 60 seconds")
             print(f"[Investigation] Navigate to deposit/payment pages now...")
-            await asyncio.sleep(30)
+            await asyncio.sleep(60)
 
             # to capture final state after manual navigation
             print(f"[Investigation] Capturing final page state...")

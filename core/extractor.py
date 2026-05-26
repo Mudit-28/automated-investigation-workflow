@@ -22,7 +22,10 @@ class Extractor:
         if not text:
             return []
         text_lower = text.lower()
-        found = [g for g in PAYMENT_GATEWAYS if g in text_lower]
+        found = []
+        for gateway_name, patterns in PAYMENT_GATEWAYS.items():
+            if any(p in text_lower for p in patterns):
+                found.append(gateway_name)
         return list(set(found))
 
     def _extract_from_requests(self, captured_requests):
@@ -68,14 +71,14 @@ class Extractor:
             "network_findings": network_findings,
             "html_findings": html_findings,
             "total_payment_requests": len(network_findings),
-            "all_upi_ids": list(set(
+            "all_upi_ids": sorted(list(set(
                 html_findings.get("upi_ids_found", []) +
                 [uid for f in network_findings for uid in f.get("upi_ids_found", [])]
-            )),
-            "all_gateways": list(set(
+            ))),
+            "all_gateways": sorted(list(set(
                 html_findings.get("gateways_found", []) +
                 [g for f in network_findings for g in f.get("gateways_found", [])]
-            ))
+            )))
         }
         self.results.append(summary)
         return summary

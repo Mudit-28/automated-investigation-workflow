@@ -68,7 +68,8 @@ class Storage:
         ]
 
         self.summary_sheet.append(row)
-        
+        self.summary_sheet.row_dimensions[self.summary_sheet.max_row].height = 80
+
         row_num = self.summary_sheet.max_row
         self.summary_sheet.cell(row=row_num, column=4).alignment = Alignment(
             wrap_text=True, vertical="top"
