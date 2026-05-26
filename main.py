@@ -10,22 +10,18 @@ from modules.page_monitor import PageMonitor
 
 
 async def run_investigation(url):
-    screenshot = Screenshot(url)
-    html_capture = HTMLCapture(url)
-    monitor = NetworkMonitor()
-    page_monitor = PageMonitor(monitor, screenshot, html_capture)
     extractor = Extractor()
     storage = Storage()
+    summary = None
 
     try:
         async with BrowserManager() as browser_manager:
-            screenshot = Screenshot(url)
+            screenshot   = Screenshot(url)
             html_capture = HTMLCapture(url)
-            monitor = NetworkMonitor()
+            monitor      = NetworkMonitor()
             page_monitor = PageMonitor(monitor, screenshot, html_capture)
 
             page = await browser_manager.new_page()
-
             monitor.attach(page)
             page_monitor.attach(page, url)
             page_monitor.attach_context(browser_manager.context, url)
@@ -44,14 +40,18 @@ async def run_investigation(url):
 
             print(f"\n[Investigation] Manual exploration window — 60 seconds")
             print(f"[Investigation] Navigate to deposit/payment pages now...")
-
             await asyncio.sleep(60)
+
             page_monitor.stop()
 
-            print(f"[Investigation] Capturing final page state...")
-            final_html = await page.content()
-            final_screenshot_path = await screenshot.capture_ss(page, page.url)
-            await html_capture.capture_html(page, page.url)
+            final_html = ""
+            try:
+                print(f"[Investigation] Capturing final page state...")
+                final_html = await page.content()
+                await screenshot.capture_ss(page, page.url)
+                await html_capture.capture_html(page, page.url)
+            except Exception:
+                print(f"[Investigation] Browser closed early — saving collected data...")
 
             captured = monitor.get_captured()
             print(f"\n[Debug] Total captured requests: {len(captured)}")
@@ -59,30 +59,33 @@ async def run_investigation(url):
                 print(f"  → {r.get('type')} | {r.get('url', '')[:80]}")
 
             summary = extractor.run(
-            captured, final_html,
-            initial_title, url, screenshot.output_dir
+                captured, final_html,
+                initial_title, url, screenshot.output_dir
             )
             storage.save(summary)
 
-            print(f"\n{'='*50}")
-            print(f"[Summary] Investigation Complete")
-            print(f"{'='*50}")
-            print(f"  URL            : {summary['url']}")
-            print(f"  Page Title     : {summary['page_title']}")
-            print(f"  Total Requests : {summary['total_payment_requests']}")
-            print(f"  UPI IDs Found  : {summary['all_upi_ids'] or 'None'}")
-            print(f"  Gateways Found : {summary['all_gateways'] or 'None'}")
-            print(f"  Screenshot Dir : {summary['screenshot_path']}")
-            print(f"{'='*50}\n")
-
     except Exception as e:
-        print(f"[Error] {e}")
+        print(f"[Investigation] Session ended: {e}")
+
+    if summary:
+        print(f"\n{'='*50}")
+        print(f"[Summary] Investigation Complete")
+        print(f"{'='*50}")
+        print(f"  URL            : {summary['url']}")
+        print(f"  Page Title     : {summary['page_title']}")
+        print(f"  Total Requests : {summary['total_payment_requests']}")
+        print(f"  UPI IDs Found  : {summary['all_upi_ids'] or 'None'}")
+        print(f"  Gateways Found : {summary['all_gateways'] or 'None'}")
+        print(f"  Screenshot Dir : {summary['screenshot_path']}")
+        print(f"{'='*50}\n")
+    else:
+        print(f"\n[Investigation] No data collected — session ended before capture.")
 
 
 def main():
     if len(sys.argv) < 2:
         print("Usage: python main.py <url>")
-        print("Example: python main.py https://www.paytm.com")
+        print("Example: python main.py https://www.airtel.in")
         sys.exit(1)
 
     url = sys.argv[1]
