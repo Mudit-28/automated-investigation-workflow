@@ -17,9 +17,12 @@ class NetworkMonitor:
 
     def _is_relevant(self, url):
         url_lower = url.lower()
-        has_payment_keyword = any(k in url_lower for k in PAYMENT_KEYWORDS)
         has_noise = any(n in url_lower for n in NOISE_KEYWORDS)
-        return has_payment_keyword and not has_noise
+        if has_noise:
+            return False
+        has_payment_keyword = any(k in url_lower for k in PAYMENT_KEYWORDS)
+        is_known_gateway = bool(self._detect_gateways(url))
+        return has_payment_keyword or is_known_gateway
 
     def _detect_gateways(self, url):
         url_lower = url.lower()
