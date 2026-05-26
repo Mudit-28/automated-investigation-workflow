@@ -2,6 +2,14 @@ import os
 from datetime import datetime
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
+
+
+HEADER_BG     = "1F4E79"   
+HEADER_FG     = "FFFFFF"   
+UPI_HIT_BG    = "FFD966"   
+GATEWAY_HIT_BG = "C6EFCE"  
+
 
 class Storage:
     def __init__(self, output_dir="output/reports"):
@@ -13,39 +21,50 @@ class Storage:
         self.requests_sheet = self.workbook.create_sheet("Network Requests")
         self._setup_headers()
 
+    # Header setup
+
     def _setup_headers(self):
         summary_headers = [
             "Website URL", "Page Title", "Total Requests",
             "Payment API URLs", "UPI IDs Found", "Gateways Found",
             "Screenshot Path", "Timestamp"
         ]
+        summary_widths = [35, 25, 15, 60, 35, 35, 45, 22]
 
         request_headers = [
-            "Website URL", "Request Type", "Method",
-            "API Endpoint", "Gateways Detected",
-            "UPI IDs Found", "Post Data", "Timestamp"
+            "Website URL", "Type", "Method", "API Endpoint",
+            "Status", "Gateways Detected", "UPI IDs Found",
+            "Post Data", "Response Body", "Timestamp"
         ]
+        request_widths = [30, 12, 10, 55, 10, 28, 28, 40, 60, 22]
 
-        self._write_headers(self.summary_sheet, summary_headers)
-        self._write_headers(self.requests_sheet, request_headers)
+        self._write_headers(self.summary_sheet, summary_headers, summary_widths)
+        self._write_headers(self.requests_sheet, request_headers, request_widths)
 
-    def _write_headers(self, sheet, headers):
-        header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(
-            start_color="1F4E79",
-            end_color="1F4E79",
-            fill_type="solid"
-        )
+        for sheet, headers in [
+            (self.summary_sheet, summary_headers),
+            (self.requests_sheet, request_headers)
+        ]:
+            sheet.freeze_panes = "A2"
+            sheet.auto_filter.ref = (
+                f"A1:{get_column_letter(len(headers))}1"
+            )
+
+    def _write_headers(self, sheet, headers, widths):
+        header_font      = Font(bold=True, color=HEADER_FG)
+        header_fill      = PatternFill("solid", fgColor=HEADER_BG)
         header_alignment = Alignment(horizontal="center", vertical="center")
 
-        for col_num, header in enumerate(headers, 1):
-            cell = sheet.cell(row=1, column=col_num, value=header)
-            cell.font = header_font
-            cell.fill = header_fill
+        for col, (header, width) in enumerate(zip(headers, widths), 1):
+            cell = sheet.cell(row=1, column=col, value=header)
+            cell.font      = header_font
+            cell.fill      = header_fill
             cell.alignment = header_alignment
-            sheet.column_dimensions[
-                openpyxl.utils.get_column_letter(col_num)
-            ].width = max(15, len(header) + 5)
+            sheet.column_dimensions[get_column_letter(col)].width = width
+
+        sheet.row_dimensions[1].height = 20
+
+    # Summary sheet
 
     def save_summary(self, summary):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -56,45 +75,84 @@ class Storage:
             if entry.get("url")
         ]))
 
-        row = [
+        upi_ids  = summary.get("all_upi_ids", [])
+        gateways = summary.get("all_gateways", [])
+
+        row_data = [
             summary.get("url", ""),
             summary.get("page_title", ""),
             summary.get("total_payment_requests", 0),
-            "\n".join(payment_urls),       
-            ", ".join(summary.get("all_upi_ids", [])),
-            ", ".join(summary.get("all_gateways", [])),
+            "\n".join(sorted(payment_urls)),
+            "\n".join(upi_ids),
+            "\n".join(gateways),
             summary.get("screenshot_path", ""),
             timestamp
         ]
 
-        self.summary_sheet.append(row)
-        self.summary_sheet.row_dimensions[self.summary_sheet.max_row].height = 80
-
+        self.summary_sheet.append(row_data)
         row_num = self.summary_sheet.max_row
-        self.summary_sheet.cell(row=row_num, column=4).alignment = Alignment(
-            wrap_text=True, vertical="top"
-        )
+
+        self.summary_sheet.row_dimensions[row_num].height = 100
+        for col in [4, 5, 6]: 
+            self.summary_sheet.cell(row=row_num, column=col).alignment = Alignment(
+                wrap_text=True, vertical="top"
+            )
+
+        if upi_ids:
+            fill = PatternFill("solid", fgColor=UPI_HIT_BG)
+            for col in range(1, 9):
+                self.summary_sheet.cell(row=row_num, column=col).fill = fill
+
         print(f"[Storage] Summary row saved for: {summary.get('url', '')}")
 
+    # Network Requests sheet
+
     def save_requests(self, summary):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         website_url = summary.get("url", "")
 
         for entry in summary.get("network_findings", []):
-            row = [
+            upi_ids  = entry.get("upi_ids_found", [])
+            gateways = entry.get("gateways_found", [])
+
+            row_data = [
                 website_url,
                 entry.get("source", "").upper(),
                 entry.get("method", ""),
                 entry.get("url", ""),
-                ", ".join(entry.get("gateways_found", [])),
-                ", ".join(entry.get("upi_ids_found", [])),
+                entry.get("status", ""),
+                ", ".join(gateways),
+                ", ".join(upi_ids),
                 entry.get("post_data", "") or "",
+                entry.get("response_body", "") or "",
                 timestamp
             ]
-            self.requests_sheet.append(row)
+
+            self.requests_sheet.append(row_data)
+            row_num = self.requests_sheet.max_row
+
+            if upi_ids:
+                fill = PatternFill("solid", fgColor=UPI_HIT_BG)
+            elif gateways:
+                fill = PatternFill("solid", fgColor=GATEWAY_HIT_BG)
+            else:
+                fill = None
+
+            if fill:
+                for col in range(1, 11):
+                    self.requests_sheet.cell(row=row_num, column=col).fill = fill
+
+            for col in [4, 8, 9]:
+                self.requests_sheet.cell(row=row_num, column=col).alignment = Alignment(
+                    wrap_text=True, vertical="top"
+                )
+
+            self.requests_sheet.row_dimensions[row_num].height = 40
 
         print(f"[Storage] {len(summary.get('network_findings', []))} request rows saved")
-    
+
+    # Save file
+
     def save(self, summary):
         self.save_summary(summary)
         self.save_requests(summary)
@@ -102,11 +160,11 @@ class Storage:
 
     def _write_file(self, summary):
         from urllib.parse import urlparse
-        parsed = urlparse(summary.get("url", ""))
+        parsed      = urlparse(summary.get("url", ""))
         website_name = parsed.netloc.replace(".", "_").replace("www_", "")
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{website_name}_investigation_{timestamp}.xlsx"
-        filepath = os.path.join(self.output_dir, filename)
+        timestamp   = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename    = f"{website_name}_investigation_{timestamp}.xlsx"
+        filepath    = os.path.join(self.output_dir, filename)
         self.workbook.save(filepath)
         print(f"[Storage] Excel report saved: {filepath}")
         return filepath
