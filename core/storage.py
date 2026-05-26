@@ -98,11 +98,14 @@ class Storage:
     def save(self, summary):
         self.save_summary(summary)
         self.save_requests(summary)
-        self._write_file()
+        self._write_file(summary)
 
-    def _write_file(self):
+    def _write_file(self, summary):
+        from urllib.parse import urlparse
+        parsed = urlparse(summary.get("url", ""))
+        website_name = parsed.netloc.replace(".", "_").replace("www_", "")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"investigation_{timestamp}.xlsx"
+        filename = f"{website_name}_investigation_{timestamp}.xlsx"
         filepath = os.path.join(self.output_dir, filename)
         self.workbook.save(filepath)
         print(f"[Storage] Excel report saved: {filepath}")

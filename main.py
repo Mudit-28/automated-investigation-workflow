@@ -10,10 +10,10 @@ from modules.page_monitor import PageMonitor
 
 
 async def run_investigation(url):
-    screenshot = Screenshot()
-    html_capture = HTMLCapture()
+    screenshot = Screenshot(url)
+    html_capture = HTMLCapture(url)
     monitor = NetworkMonitor()
-    page_monitor = PageMonitor(monitor)
+    page_monitor = PageMonitor(monitor, screenshot, html_capture)
     extractor = Extractor()
     storage = Storage()
 
@@ -39,7 +39,6 @@ async def run_investigation(url):
             print(f"[Investigation] Navigate to deposit/payment pages now...")
             await asyncio.sleep(60)
 
-            # to capture final state after manual navigation
             print(f"[Investigation] Capturing final page state...")
             final_html = await page.content()
             final_title = await page.title()
@@ -52,8 +51,8 @@ async def run_investigation(url):
                 print(f"  → {r.get('type')} | {r.get('url', '')[:80]}")
 
             summary = extractor.run(
-                captured, final_html,
-                final_title, url, final_screenshot_path
+            captured, final_html,
+            final_title, url, screenshot.output_dir
             )
             storage.save(summary)
 
@@ -65,7 +64,7 @@ async def run_investigation(url):
             print(f"  Total Requests : {summary['total_payment_requests']}")
             print(f"  UPI IDs Found  : {summary['all_upi_ids'] or 'None'}")
             print(f"  Gateways Found : {summary['all_gateways'] or 'None'}")
-            print(f"  Screenshot     : {summary['screenshot_path']}")
+            print(f"  Screenshot Dir : {summary['screenshot_path']}")
             print(f"{'='*50}\n")
 
     except Exception as e:

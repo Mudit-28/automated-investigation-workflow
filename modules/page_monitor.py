@@ -1,13 +1,11 @@
 import asyncio
 import time
-from modules.screenshots import Screenshot
-from modules.html_capture import HTMLCapture
 
 
 class PageMonitor:
-    def __init__(self, network_monitor):
-        self.screenshot = Screenshot()
-        self.html_capture = HTMLCapture()
+    def __init__(self, network_monitor, screenshot, html_capture):
+        self.screenshot = screenshot
+        self.html_capture = html_capture
         self.network_monitor = network_monitor
         self.monitored_pages = []
         self.last_screenshot_time = 0     
