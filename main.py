@@ -37,10 +37,13 @@ async def run_investigation(url):
             print(f"[Main] Captured screenshot.")
             await html_capture.capture_html(page, url)
             print(f"[Main] Captured HTML content.")
-
-            print(f"\n[Investigation] Manual exploration window — 60 seconds")
-            print(f"[Investigation] Navigate to deposit/payment pages now...")
-            await asyncio.sleep(60)
+            
+            # browser time limit
+            for _ in range(120):
+                await asyncio.sleep(1)
+                if page.is_closed():
+                    print(f"[Investigation] Browser closed — proceeding to save...")
+                    break
 
             page_monitor.stop()
 

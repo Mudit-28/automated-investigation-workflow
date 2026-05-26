@@ -21,6 +21,8 @@ class Extractor:
         filtered_loose = {
             m for m in loose
             if m.split("@")[-1].lower() not in COMMON_EMAIL_DOMAINS
+            and m.split("@")[-1] == m.split("@")[-1].lower()
+            and not m.split("@")[0][0].isupper()
         }
         return sorted(list(strict | filtered_loose))
 

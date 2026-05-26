@@ -267,7 +267,7 @@ PAYMENT_GATEWAYS = {
     "Tap Payments":     ["tap.company", "tappayme.com"],
     "PayFort":          ["payfort.com"],
     "DPO":              ["dpogroup.com"],
-    "Flutterwave":      ["flutterwave.com", "rave"],
+    "Flutterwave":      ["flutterwave.com"], 
     "Paystack":         ["paystack.com"],
     "Noon Payments":    ["noon.com/payment", "noonpayments"],
     "PayBy":            ["payby.com"],
