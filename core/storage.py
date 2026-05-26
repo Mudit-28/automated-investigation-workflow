@@ -9,6 +9,7 @@ HEADER_BG     = "1F4E79"
 HEADER_FG     = "FFFFFF"   
 UPI_HIT_BG    = "FFD966"   
 GATEWAY_HIT_BG = "C6EFCE"  
+QR_HIT_BG     = "F4B942"  
 
 
 class Storage:
@@ -110,6 +111,7 @@ class Storage:
     def save_requests(self, summary):
         timestamp   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         website_url = summary.get("url", "")
+        QR_KEYWORDS = ["qr-code", "qr/", "/qr", "initiate/qr", "payment/initiate"]
 
         for entry in summary.get("network_findings", []):
             upi_ids  = entry.get("upi_ids_found", [])
@@ -131,7 +133,11 @@ class Storage:
             self.requests_sheet.append(row_data)
             row_num = self.requests_sheet.max_row
 
-            if upi_ids:
+            is_qr = any(k in entry.get("url", "").lower() for k in QR_KEYWORDS)
+
+            if is_qr:
+                fill = PatternFill("solid", fgColor=QR_HIT_BG)
+            elif upi_ids:
                 fill = PatternFill("solid", fgColor=UPI_HIT_BG)
             elif gateways:
                 fill = PatternFill("solid", fgColor=GATEWAY_HIT_BG)
