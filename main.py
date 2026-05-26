@@ -35,6 +35,8 @@ async def run_investigation(url):
             await page.wait_for_load_state("networkidle")
             print(f"[Investigation] Page loaded")
 
+            initial_title = await page.title()
+
             await screenshot.capture_ss(page, url)
             print(f"[Main] Captured screenshot.")
             await html_capture.capture_html(page, url)
@@ -46,7 +48,6 @@ async def run_investigation(url):
 
             print(f"[Investigation] Capturing final page state...")
             final_html = await page.content()
-            final_title = await page.title()
             final_screenshot_path = await screenshot.capture_ss(page, page.url)
             await html_capture.capture_html(page, page.url)
 
@@ -57,7 +58,7 @@ async def run_investigation(url):
 
             summary = extractor.run(
             captured, final_html,
-            final_title, url, screenshot.output_dir
+            initial_title, url, screenshot.output_dir
             )
             storage.save(summary)
 
