@@ -344,6 +344,14 @@ PAYMENT_GATEWAYS = {
     "Trankpay":         ["trankpay.com"],
 }
 
+UPI_COLLECT_PATTERNS = [
+    "collect", "collectrequest", "upi-collect", "upi/collect",
+    "pay-request", "payrequest", "/collect/", "vpa/collect",
+    "upi/mandate", "createmandate", "mandate/create",
+    "upi/intent", "upiintent", "intent/upi"
+]
+
+
 import re
 UPI_PATTERN = re.compile(
     r'[a-zA-Z0-9.\-_]{3,256}'

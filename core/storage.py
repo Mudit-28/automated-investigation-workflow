@@ -10,6 +10,7 @@ HEADER_FG      = "FFFFFF"   # white
 UPI_HIT_BG     = "FFD966"   # yellow  — UPI ID found
 GATEWAY_HIT_BG = "C6EFCE"   # green   — gateway detected, no UPI
 QR_HIT_BG      = "F4B942"   # orange  — QR / payment initiation endpoint
+COLLECT_HIT_BG = "FF6B6B"   # red     — UPI collect request detected
 
 
 class Storage:
@@ -135,8 +136,11 @@ class Storage:
 
             # Highlight priority: UPI found > QR endpoint > gateway > none
             is_qr = any(k in entry.get("url", "").lower() for k in QR_KEYWORDS)
+            is_collect = entry.get("is_collect_request", False)
 
-            if upi_ids:
+            if is_collect:
+                fill = PatternFill("solid", fgColor=COLLECT_HIT_BG)
+            elif upi_ids:
                 fill = PatternFill("solid", fgColor=UPI_HIT_BG)
             elif is_qr or qr_decoded:
                 fill = PatternFill("solid", fgColor=QR_HIT_BG)

@@ -4,6 +4,7 @@ import json
 import base64
 import re
 from config.patterns import PAYMENT_KEYWORDS, NOISE_KEYWORDS, PAYMENT_GATEWAYS, UPI_PATTERN
+from config.patterns import PAYMENT_KEYWORDS, NOISE_KEYWORDS, PAYMENT_GATEWAYS, UPI_PATTERN, UPI_COLLECT_PATTERNS
 
 # QR image URL patterns — these endpoints serve QR images directly
 QR_IMAGE_URL_PATTERNS = ["/qr/", "qrcode", "qr-image", "generateqr", "getqr"]
@@ -31,6 +32,11 @@ class NetworkMonitor:
             if any(p in url_lower for p in patterns):
                 found.append(gateway_name)
         return found
+    
+    def _is_collect_request(self, url, post_data=""):
+        """Detect if this request is a UPI collect/intent trigger."""
+        combined = (url + " " + (post_data or "")).lower()
+        return any(p in combined for p in UPI_COLLECT_PATTERNS)
 
     # ── QR decoding ──────────────────────────────────────────────────────────
     async def _follow_redirect(self, url):
@@ -159,13 +165,21 @@ class NetworkMonitor:
         url = request.url
         if not self._is_relevant(url):
             return
+
+        post_data = request.post_data or None
+        is_collect = self._is_collect_request(url, post_data or "")
+
+        if is_collect:
+            print(f"[Network] ⚠️  UPI COLLECT REQUEST DETECTED: {request.method} {url}")
+
         entry = {
             "type": "request",
             "url": url,
             "method": request.method,
             "headers": dict(request.headers),
             "gateways_detected": self._detect_gateways(url),
-            "post_data": request.post_data or None,
+            "post_data": post_data,
+            "is_collect_request": is_collect,
         }
         self.captured_requests.append(entry)
         print(f"[Network] Captured: {request.method} {url}")
@@ -196,12 +210,13 @@ class NetworkMonitor:
         qr_decoded = await self._try_decode_qr(url, body_text, raw_bytes)
 
         entry = {
-            "type": "response",
-            "url": url,
-            "status": response.status,
-            "gateways_detected": self._detect_gateways(url),
-            "response_body": body_text,
-            "qr_decoded": qr_decoded,
+        "type": "response",
+        "url": url,
+        "status": response.status,
+        "gateways_detected": self._detect_gateways(url),
+        "response_body": body_text,
+        "qr_decoded": qr_decoded,
+        "is_collect_request": self._is_collect_request(url),
         }
         self.captured_requests.append(entry)
 
