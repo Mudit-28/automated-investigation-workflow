@@ -29,7 +29,7 @@ class Storage:
             "Website URL", "Page Title", "Total Requests",
             "Payment API URLs", "UPI IDs Found", "Gateways Found",
             "Bank IFSC Codes", "Account Numbers",
-            "Beneficiary Names",          # NEW
+            "Beneficiary Names",          
             "Screenshot Path", "Timestamp"
         ]
         summary_widths = [35, 25, 15, 60, 35, 35, 30, 30, 40, 45, 22]
@@ -37,7 +37,7 @@ class Storage:
         request_headers = [
             "Website URL", "Type", "Method", "API Endpoint",
             "Status", "Gateways Detected", "UPI IDs Found",
-            "Beneficiary Names",          # NEW
+            "Beneficiary Names",          
             "Post Data", "Response Body", "QR Decoded", "Timestamp"
         ]
         request_widths = [30, 12, 10, 55, 10, 28, 28, 35, 40, 60, 45, 22]

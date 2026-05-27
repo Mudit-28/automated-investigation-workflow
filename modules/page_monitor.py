@@ -174,11 +174,6 @@ class PageMonitor:
             print(f"[Page Monitor] Context page error: {e}")
 
     async def _scan_dom_for_upi(self, page):
-        """
-        Scan the fully rendered DOM for UPI IDs after JavaScript has executed.
-        Catches obfuscated UPI IDs assembled at runtime that never appear
-        in raw network traffic.
-        """
         try:
             upi_matches = await page.evaluate("""
                 () => {
