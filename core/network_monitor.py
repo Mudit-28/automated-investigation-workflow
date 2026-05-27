@@ -33,6 +33,23 @@ class NetworkMonitor:
         return found
 
     # ── QR decoding ──────────────────────────────────────────────────────────
+    async def _follow_redirect(self, url):
+        """Follow a short URL redirect and return the final destination."""
+        try:
+            import httpx
+            async with httpx.AsyncClient(
+                follow_redirects=True,
+                timeout=5
+            ) as client:
+                r = await client.get(url)
+                final_url = str(r.url)
+                if final_url != url:
+                    print(f"[Network] Short URL resolved: {url} → {final_url}")
+                return final_url
+        except Exception:
+            pass
+        return url
+
 
     def _decode_qr_bytes(self, raw_bytes):
         """Decode a QR code from raw image bytes. Returns the decoded string or None."""
@@ -125,6 +142,14 @@ class NetworkMonitor:
             if qr_decoded:
                 print(f"[Network] QR Decoded (base64 HTML): {qr_decoded}")
                 return qr_decoded
+            
+        if qr_decoded and "upi://" not in qr_decoded and "pa=" not in qr_decoded:
+            if qr_decoded.startswith("http"):
+                resolved = await self._follow_redirect(qr_decoded)
+                if "pa=" in resolved or "upi://" in resolved:
+                    print(f"[Network] UPI found after redirect: {resolved}")
+                    return resolved
+                return resolved
 
         return None
 
