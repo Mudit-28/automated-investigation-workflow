@@ -52,6 +52,7 @@ class PageMonitor:
         self.page_ready = True
         print(f"[Page Monitor] Page ready, DOM observer active")
         await self._setup_mutation_observer(page)
+        await self._scan_dom_for_upi(page) 
 
     async def _on_popup(self, popup):
         try:
@@ -97,6 +98,7 @@ class PageMonitor:
             await page.wait_for_load_state("domcontentloaded")
             await asyncio.sleep(1)
             await self._safe_capture(page, new_url)
+            await self._scan_dom_for_upi(page) 
 
         except Exception as e:
             print(f"[Page Monitor] Navigation error: {e}")
@@ -170,3 +172,37 @@ class PageMonitor:
             ))
         except Exception as e:
             print(f"[Page Monitor] Context page error: {e}")
+
+    async def _scan_dom_for_upi(self, page):
+        """
+        Scan the fully rendered DOM for UPI IDs after JavaScript has executed.
+        Catches obfuscated UPI IDs assembled at runtime that never appear
+        in raw network traffic.
+        """
+        try:
+            upi_matches = await page.evaluate("""
+                () => {
+                    const text = document.body.innerText + ' ' + document.body.innerHTML;
+                    const pattern = /[a-zA-Z0-9._\\-]{3,256}@(paytm|okicici|okhdfcbank|okaxis|oksbi|ybl|ibl|axl|upi|apl|pingpay|waicici|mahb|idbi|dbs|freecharge|ikwik|indus|rbl|paytmbank|phonepe|gpay|bhim|airtel|axisbank|kotak|sbi|hdfc|icici|oksbi|upi)/gi;
+                    const matches = text.match(pattern);
+                    return matches ? [...new Set(matches)] : [];
+                }
+            """)
+
+            if upi_matches:
+                print(f"[Page Monitor] UPI found in DOM: {upi_matches}")
+                self.network_monitor.captured_requests.append({
+                    "type": "dom_scan",
+                    "url": page.url,
+                    "method": "DOM",
+                    "gateways_detected": [],
+                    "post_data": None,
+                    "response_body": None,
+                    "qr_decoded": None,
+                    "is_collect_request": False,
+                    "upi_ids_found": upi_matches,
+                    "source": "dom"
+                })
+
+        except Exception:
+            pass  # Page navigated or closed mid-scan — safe to ignore
