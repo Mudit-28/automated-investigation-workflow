@@ -5,6 +5,10 @@ import base64
 import re
 from config.patterns import PAYMENT_KEYWORDS, NOISE_KEYWORDS, PAYMENT_GATEWAYS, UPI_PATTERN
 from config.patterns import PAYMENT_KEYWORDS, NOISE_KEYWORDS, PAYMENT_GATEWAYS, UPI_PATTERN, UPI_COLLECT_PATTERNS
+from config.patterns import (
+    PAYMENT_KEYWORDS, NOISE_KEYWORDS, PAYMENT_GATEWAYS,
+    UPI_PATTERN, UPI_COLLECT_PATTERNS, AGGREGATOR_PATTERNS
+)
 
 # QR image URL patterns — these endpoints serve QR images directly
 QR_IMAGE_URL_PATTERNS = ["/qr/", "qrcode", "qr-image", "generateqr", "getqr"]
@@ -33,6 +37,17 @@ class NetworkMonitor:
                 found.append(gateway_name)
         return found
     
+    def _detect_aggregator(self, url):
+        """
+        Detect if this URL is a hosted payment page from an aggregator.
+        These pages hide the merchant UPI server-side — flag for manual lookup.
+        """
+        url_lower = url.lower()
+        for name, patterns in AGGREGATOR_PATTERNS.items():
+            if any(p in url_lower for p in patterns):
+                return name
+        return None
+
     def _is_collect_request(self, url, post_data=""):
         """Detect if this request is a UPI collect/intent trigger."""
         combined = (url + " " + (post_data or "")).lower()
@@ -166,11 +181,14 @@ class NetworkMonitor:
         if not self._is_relevant(url):
             return
 
-        post_data = request.post_data or None
-        is_collect = self._is_collect_request(url, post_data or "")
+        post_data   = request.post_data or None
+        is_collect  = self._is_collect_request(url, post_data or "")
+        aggregator  = self._detect_aggregator(url)
 
         if is_collect:
             print(f"[Network] ⚠️  UPI COLLECT REQUEST DETECTED: {request.method} {url}")
+        if aggregator:
+            print(f"[Network] ⚠️  AGGREGATOR HOSTED PAGE: {aggregator} — merchant UPI hidden, manual lookup required")
 
         entry = {
             "type": "request",
@@ -180,6 +198,7 @@ class NetworkMonitor:
             "gateways_detected": self._detect_gateways(url),
             "post_data": post_data,
             "is_collect_request": is_collect,
+            "aggregator": aggregator,
         }
         self.captured_requests.append(entry)
         print(f"[Network] Captured: {request.method} {url}")
@@ -217,6 +236,7 @@ class NetworkMonitor:
         "response_body": body_text,
         "qr_decoded": qr_decoded,
         "is_collect_request": self._is_collect_request(url),
+        "aggregator": self._detect_aggregator(url),
         }
         self.captured_requests.append(entry)
 

@@ -11,6 +11,7 @@ UPI_HIT_BG     = "FFD966"   # yellow  — UPI ID found
 GATEWAY_HIT_BG = "C6EFCE"   # green   — gateway detected, no UPI
 QR_HIT_BG      = "F4B942"   # orange  — QR / payment initiation endpoint
 COLLECT_HIT_BG = "FF6B6B"   # red     — UPI collect request detected
+AGGREGATOR_BG  = "D9B3FF"   # purple — aggregator hosted page, merchant UPI hidden
 
 
 class Storage:
@@ -117,17 +118,21 @@ class Storage:
             gateways   = entry.get("gateways_found", [])
             qr_decoded = entry.get("qr_decoded", "") or ""
 
+            gateway_display = ", ".join(gateways)
+            if aggregator:
+                gateway_display += f" | Aggregator: {aggregator} — merchant UPI hidden"
+
             row_data = [
                 website_url,
                 entry.get("source", "").upper(),
                 entry.get("method", ""),
                 entry.get("url", ""),
                 entry.get("status", ""),
-                ", ".join(gateways),
+                gateway_display,          # ← updated
                 ", ".join(upi_ids),
                 entry.get("post_data", "") or "",
                 entry.get("response_body", "") or "",
-                qr_decoded,
+                entry.get("qr_decoded", "") or "",
                 timestamp
             ]
 
@@ -137,6 +142,8 @@ class Storage:
             # Highlight priority: UPI found > QR endpoint > gateway > none
             is_qr = any(k in entry.get("url", "").lower() for k in QR_KEYWORDS)
             is_collect = entry.get("is_collect_request", False)
+            is_collect  = entry.get("is_collect_request", False)
+            aggregator  = entry.get("aggregator", None)
 
             if is_collect:
                 fill = PatternFill("solid", fgColor=COLLECT_HIT_BG)
@@ -144,6 +151,8 @@ class Storage:
                 fill = PatternFill("solid", fgColor=UPI_HIT_BG)
             elif is_qr or qr_decoded:
                 fill = PatternFill("solid", fgColor=QR_HIT_BG)
+            elif aggregator:
+                fill = PatternFill("solid", fgColor=AGGREGATOR_BG)
             elif gateways:
                 fill = PatternFill("solid", fgColor=GATEWAY_HIT_BG)
             else:

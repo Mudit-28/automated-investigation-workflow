@@ -351,6 +351,13 @@ UPI_COLLECT_PATTERNS = [
     "upi/intent", "upiintent", "intent/upi"
 ]
 
+AGGREGATOR_PATTERNS = {
+    "Razorpay Payment Link": ["rzp.io/l/", "rzp.io/pay/"],
+    "Cashfree Payment Link": ["payments.cashfree.com/pgbillpay"],
+    "Instamojo":             ["instamojo.com/pay"],
+    "PayU Hosted":           ["payumoney.com/paybyweb"],
+}
+
 
 import re
 UPI_PATTERN = re.compile(
