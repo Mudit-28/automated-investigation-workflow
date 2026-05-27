@@ -205,4 +205,4 @@ class PageMonitor:
                 })
 
         except Exception:
-            pass  # Page navigated or closed mid-scan — safe to ignore
+            pass 

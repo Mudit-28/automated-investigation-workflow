@@ -345,7 +345,7 @@ PAYMENT_GATEWAYS = {
 }
 
 UPI_COLLECT_PATTERNS = [
-    "collect", "collectrequest", "upi-collect", "upi/collect",
+    "collectrequest", "upi-collect", "upi/collect",
     "pay-request", "payrequest", "/collect/", "vpa/collect",
     "upi/mandate", "createmandate", "mandate/create",
     "upi/intent", "upiintent", "intent/upi"
@@ -372,3 +372,7 @@ UPI_PATTERN = re.compile(
 UPI_PATTERN_LOOSE = re.compile(
     r'[a-zA-Z0-9.\-_]{4,256}@[a-zA-Z]{4,20}'
 )
+
+IFSC_PATTERN = re.compile(r'\b[A-Z]{4}0[A-Z0-9]{6}\b')
+
+BANK_ACCOUNT_PATTERN = re.compile(r'\b\d{9,18}\b')

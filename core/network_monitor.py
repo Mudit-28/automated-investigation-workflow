@@ -3,22 +3,17 @@ import io
 import json
 import base64
 import re
-from config.patterns import PAYMENT_KEYWORDS, NOISE_KEYWORDS, PAYMENT_GATEWAYS, UPI_PATTERN
-from config.patterns import PAYMENT_KEYWORDS, NOISE_KEYWORDS, PAYMENT_GATEWAYS, UPI_PATTERN, UPI_COLLECT_PATTERNS
 from config.patterns import (
     PAYMENT_KEYWORDS, NOISE_KEYWORDS, PAYMENT_GATEWAYS,
     UPI_PATTERN, UPI_COLLECT_PATTERNS, AGGREGATOR_PATTERNS
 )
 
-# QR image URL patterns — these endpoints serve QR images directly
 QR_IMAGE_URL_PATTERNS = ["/qr/", "qrcode", "qr-image", "generateqr", "getqr"]
 
 
 class NetworkMonitor:
     def __init__(self):
         self.captured_requests = []
-
-    # ── Relevance filtering ──────────────────────────────────────────────────
 
     def _is_relevant(self, url):
         url_lower = url.lower()
@@ -38,10 +33,6 @@ class NetworkMonitor:
         return found
     
     def _detect_aggregator(self, url):
-        """
-        Detect if this URL is a hosted payment page from an aggregator.
-        These pages hide the merchant UPI server-side — flag for manual lookup.
-        """
         url_lower = url.lower()
         for name, patterns in AGGREGATOR_PATTERNS.items():
             if any(p in url_lower for p in patterns):
@@ -49,13 +40,10 @@ class NetworkMonitor:
         return None
 
     def _is_collect_request(self, url, post_data=""):
-        """Detect if this request is a UPI collect/intent trigger."""
         combined = (url + " " + (post_data or "")).lower()
         return any(p in combined for p in UPI_COLLECT_PATTERNS)
 
-    # ── QR decoding ──────────────────────────────────────────────────────────
     async def _follow_redirect(self, url):
-        """Follow a short URL redirect and return the final destination."""
         try:
             import httpx
             async with httpx.AsyncClient(
@@ -73,7 +61,6 @@ class NetworkMonitor:
 
 
     def _decode_qr_bytes(self, raw_bytes):
-        """Decode a QR code from raw image bytes. Returns the decoded string or None."""
         try:
             from pyzbar.pyzbar import decode as qr_decode
             from PIL import Image
@@ -86,7 +73,6 @@ class NetworkMonitor:
         return None
 
     async def _decode_qr_from_url(self, qr_url):
-        """Fetch a QR image URL and decode it."""
         try:
             import httpx
             async with httpx.AsyncClient(timeout=5) as client:
@@ -100,10 +86,6 @@ class NetworkMonitor:
         return None
 
     def _decode_qr_from_base64_html(self, html_content):
-        """
-        Scan HTML for base64-embedded images and decode any that
-        contain a UPI deep link.
-        """
         try:
             matches = re.findall(
                 r'data:image/(?:png|jpeg|jpg|gif);base64,([A-Za-z0-9+/=]+)',
@@ -122,18 +104,8 @@ class NetworkMonitor:
         return None
 
     async def _try_decode_qr(self, url, body_text, raw_bytes=None):
-        """
-        Central QR decode dispatcher.
-        Returns decoded QR string or None.
-
-        Three strategies:
-        1. URL is a QR image endpoint → decode raw response bytes directly
-        2. JSON response contains qrImageLink → fetch that URL and decode
-        3. HTML response contains base64 image → decode inline
-        """
         qr_decoded = None
 
-        # Strategy 1: URL is itself a QR image
         is_qr_image_url = any(p in url.lower() for p in QR_IMAGE_URL_PATTERNS)
         if is_qr_image_url and raw_bytes:
             qr_decoded = self._decode_qr_bytes(raw_bytes)
@@ -144,7 +116,6 @@ class NetworkMonitor:
         if not body_text:
             return None
 
-        # Strategy 2: JSON body contains a qrImageLink
         if "qrImageLink" in body_text:
             try:
                 data = json.loads(body_text)
@@ -157,7 +128,6 @@ class NetworkMonitor:
             except Exception:
                 pass
 
-        # Strategy 3: base64 QR embedded in HTML
         if "data:image" in body_text:
             qr_decoded = self._decode_qr_from_base64_html(body_text)
             if qr_decoded:
@@ -174,8 +144,6 @@ class NetworkMonitor:
 
         return None
 
-    # ── Request / Response handlers ──────────────────────────────────────────
-
     def _on_request(self, request):
         url = request.url
         if not self._is_relevant(url):
@@ -186,9 +154,9 @@ class NetworkMonitor:
         aggregator  = self._detect_aggregator(url)
 
         if is_collect:
-            print(f"[Network] ⚠️  UPI COLLECT REQUEST DETECTED: {request.method} {url}")
+            print(f"[Network] UPI COLLECT REQUEST DETECTED: {request.method} {url}")
         if aggregator:
-            print(f"[Network] ⚠️  AGGREGATOR HOSTED PAGE: {aggregator} — merchant UPI hidden, manual lookup required")
+            print(f"[Network] AGGREGATOR HOSTED PAGE: {aggregator} — merchant UPI hidden, manual lookup required")
 
         entry = {
             "type": "request",
@@ -211,7 +179,6 @@ class NetworkMonitor:
         body_text = None
         raw_bytes = None
 
-        # Check if this URL is a QR image endpoint — get bytes, not text
         is_qr_image_url = any(p in url.lower() for p in QR_IMAGE_URL_PATTERNS)
 
         if is_qr_image_url:
@@ -225,7 +192,6 @@ class NetworkMonitor:
             except Exception:
                 pass
 
-        # Attempt QR decode using all strategies
         qr_decoded = await self._try_decode_qr(url, body_text, raw_bytes)
 
         entry = {

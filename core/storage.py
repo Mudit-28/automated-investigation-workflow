@@ -5,13 +5,13 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
 
-HEADER_BG      = "1F4E79"   # dark blue
-HEADER_FG      = "FFFFFF"   # white
-UPI_HIT_BG     = "FFD966"   # yellow  — UPI ID found
-GATEWAY_HIT_BG = "C6EFCE"   # green   — gateway detected, no UPI
-QR_HIT_BG      = "F4B942"   # orange  — QR / payment initiation endpoint
-COLLECT_HIT_BG = "FF6B6B"   # red     — UPI collect request detected
-AGGREGATOR_BG  = "D9B3FF"   # purple — aggregator hosted page, merchant UPI hidden
+HEADER_BG      = "1F4E79"   # Dark Blue
+HEADER_FG      = "FFFFFF"   # White
+UPI_HIT_BG     = "FFD966"   # Yellow  — UPI ID found
+GATEWAY_HIT_BG = "C6EFCE"   # Green   — Gateway detected, no UPI
+QR_HIT_BG      = "F4B942"   # Orange  — QR / Payment initiation endpoint
+COLLECT_HIT_BG = "FF6B6B"   # Red     — UPI collect request detected
+AGGREGATOR_BG  = "D9B3FF"   # Purple  — Aggregator hosted page, Merchant UPI hidden
 
 
 class Storage:
@@ -24,15 +24,14 @@ class Storage:
         self.requests_sheet = self.workbook.create_sheet("Network Requests")
         self._setup_headers()
 
-    # ── Header setup ─────────────────────────────────────────────────────────
-
     def _setup_headers(self):
         summary_headers = [
-            "Website URL", "Page Title", "Total Requests",
-            "Payment API URLs", "UPI IDs Found", "Gateways Found",
-            "Screenshot Path", "Timestamp"
+        "Website URL", "Page Title", "Total Requests",
+        "Payment API URLs", "UPI IDs Found", "Gateways Found",
+        "Bank IFSC Codes", "Account Numbers",        
+        "Screenshot Path", "Timestamp"
         ]
-        summary_widths = [35, 25, 15, 60, 35, 35, 45, 22]
+        summary_widths = [35, 25, 15, 60, 35, 35, 30, 30, 45, 22]
 
         request_headers = [
             "Website URL", "Type", "Method", "API Endpoint",
@@ -65,8 +64,6 @@ class Storage:
 
         sheet.row_dimensions[1].height = 20
 
-    # ── Summary sheet ─────────────────────────────────────────────────────────
-
     def save_summary(self, summary):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -84,8 +81,10 @@ class Storage:
             summary.get("page_title", ""),
             summary.get("total_payment_requests", 0),
             "\n".join(sorted(payment_urls)),
-            "\n".join(upi_ids),
-            "\n".join(gateways),
+            "\n".join(summary.get("all_upi_ids", [])),
+            "\n".join(summary.get("all_gateways", [])),
+            "\n".join(summary.get("all_ifsc_codes", [])),       
+            "\n".join(summary.get("all_account_numbers", [])),  
             summary.get("screenshot_path", ""),
             timestamp
         ]
@@ -94,19 +93,17 @@ class Storage:
         row_num = self.summary_sheet.max_row
 
         self.summary_sheet.row_dimensions[row_num].height = 100
-        for col in [4, 5, 6]:
+        for col in [4, 5, 6, 7, 8]:
             self.summary_sheet.cell(row=row_num, column=col).alignment = Alignment(
                 wrap_text=True, vertical="top"
             )
 
         if upi_ids:
             fill = PatternFill("solid", fgColor=UPI_HIT_BG)
-            for col in range(1, 9):
+            for col in range(1, 11):
                 self.summary_sheet.cell(row=row_num, column=col).fill = fill
 
         print(f"[Storage] Summary row saved for: {summary.get('url', '')}")
-
-    # ── Network Requests sheet ────────────────────────────────────────────────
 
     def save_requests(self, summary):
         timestamp   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -117,6 +114,9 @@ class Storage:
             upi_ids    = entry.get("upi_ids_found", [])
             gateways   = entry.get("gateways_found", [])
             qr_decoded = entry.get("qr_decoded", "") or ""
+            is_collect = entry.get("is_collect_request", False)
+            aggregator = entry.get("aggregator", None)
+            is_qr = any(k in entry.get("url", "").lower() for k in QR_KEYWORDS)
 
             gateway_display = ", ".join(gateways)
             if aggregator:
@@ -128,7 +128,7 @@ class Storage:
                 entry.get("method", ""),
                 entry.get("url", ""),
                 entry.get("status", ""),
-                gateway_display,          # ← updated
+                gateway_display,
                 ", ".join(upi_ids),
                 entry.get("post_data", "") or "",
                 entry.get("response_body", "") or "",
@@ -139,11 +139,6 @@ class Storage:
             self.requests_sheet.append(row_data)
             row_num = self.requests_sheet.max_row
 
-            # Highlight priority: UPI found > QR endpoint > gateway > none
-            is_qr = any(k in entry.get("url", "").lower() for k in QR_KEYWORDS)
-            is_collect = entry.get("is_collect_request", False)
-            is_collect  = entry.get("is_collect_request", False)
-            aggregator  = entry.get("aggregator", None)
 
             if is_collect:
                 fill = PatternFill("solid", fgColor=COLLECT_HIT_BG)
@@ -171,12 +166,17 @@ class Storage:
 
         print(f"[Storage] {len(summary.get('network_findings', []))} request rows saved")
 
-    # ── Save file ─────────────────────────────────────────────────────────────
 
     def save(self, summary):
-        self.save_summary(summary)
-        self.save_requests(summary)
-        self._write_file(summary)
+        try:
+            self.save_summary(summary)
+        except Exception as e:
+            print(f"[Storage] Error saving summary: {e}")
+        try:
+            self.save_requests(summary)
+        except Exception as e:
+            print(f"[Storage] Error saving requests: {e}")
+        self._write_file(summary)  
 
     def _write_file(self, summary):
         from urllib.parse import urlparse
