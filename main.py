@@ -39,7 +39,7 @@ async def run_investigation(url):
             print(f"[Main] Captured HTML content.")
             
             # browser time limit
-            for _ in range(120):
+            for _ in range(1200):
                 await asyncio.sleep(1)
                 if page.is_closed():
                     print(f"[Investigation] Browser closed — proceeding to save...")

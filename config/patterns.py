@@ -110,6 +110,12 @@ NOISE_KEYWORDS = [
 ]
 
 PAYMENT_GATEWAYS = {
+    "GuardPayPro":   ["guardpaypro.com", "cashier.guardpaypro"],
+    "UKPayCenter":   ["ukpaycenter.com", "api.ukpaycenter"],
+    "OdeonPay":      ["odeonpay", "/deposit/odeonpay/", "paysystems/deposit/odeonpay"],
+    "PayOneTime":    ["payonetime", "/deposit/payonetime/", "paysystems/deposit/payonetime"],
+    "BT3 P2P":       ["/deposit/bt3/", "paysystems/deposit/bt3"],
+
     # Indian payment gateways
     "Razorpay":         ["razorpay.com", "api.razorpay", "checkout.razorpay"],
     "Cashfree":         ["cashfree.com", "cashfreepayme"],
@@ -267,7 +273,7 @@ PAYMENT_GATEWAYS = {
     "Tap Payments":     ["tap.company", "tappayme.com"],
     "PayFort":          ["payfort.com"],
     "DPO":              ["dpogroup.com"],
-    "Flutterwave":      ["flutterwave.com"], 
+    "Flutterwave":      ["flutterwave.com"],
     "Paystack":         ["paystack.com"],
     "Noon Payments":    ["noon.com/payment", "noonpayments"],
     "PayBy":            ["payby.com"],
@@ -292,7 +298,7 @@ PAYMENT_GATEWAYS = {
     "WeChat Pay":       ["wechatpay.com", "wx.tenpay.com"],
     "UnionPay":         ["unionpay.com", "unionpayintl.com"],
 
-    # Europe / Global wallets 
+    # Europe / Global wallets
     "Vipps":            ["vipps.no"],
     "Swish":            ["swish.nu", "swish.se"],
     "iDEAL":            ["ideal.nl"],
@@ -315,7 +321,7 @@ PAYMENT_GATEWAYS = {
     "Barclays ePDQ":    ["epdq.co.uk", "barclaycard.co.uk"],
     "Bluecode":         ["bluecode.com"],
 
-    # Card scheme gateways 
+    # Card scheme gateways
     "Mastercard Gateway": ["mpgs.com", "mastercard.gateway", "mastercard.com/gateway"],
     "Visa Gateway":       ["visa.com/checkout"],
     "American Express":   ["americanexpress.com", "amex.com"],
@@ -323,13 +329,13 @@ PAYMENT_GATEWAYS = {
     "Google Pay":         ["googlepay.com", "pay.google.com"],
     "Amazon Pay":         ["amazonpay.in", "pay.amazon.com", "amazonpay.com"],
 
-    # Transfer / remittance 
+    # Transfer / remittance
     "Western Union":    ["westernunion.com"],
     "MoneyGram":        ["moneygram.com"],
     "Paysend":          ["paysend.com"],
     "Remitly":          ["remitly.com"],
 
-    # Misc 
+    # Misc
     "YAP":              ["yap.co"],
     "NTT DATA":         ["nttdata.com"],
     "AGS Transact":     ["agstransact.com"],
@@ -366,7 +372,9 @@ UPI_PATTERN = re.compile(
     r'(paytm|okicici|okhdfcbank|okaxis|oksbi|ybl|ibl|axl|'
     r'upi|apl|pingpay|waicici|mahb|idbi|dbs|'
     r'freecharge|ikwik|indus|rbl|'
-    r'paytmbank|phonepe|gpay|bhim|airtel)',
+    r'paytmbank|phonepe|gpay|bhim|airtel|'
+    r'nyes|ptyes|naviaxis|superyes|timecosmos|jiobizcash|'
+    r'raholipay|jupiteraxis|okbizaxis)',
     re.IGNORECASE
 )
 UPI_PATTERN_LOOSE = re.compile(

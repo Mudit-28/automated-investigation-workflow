@@ -1,14 +1,24 @@
+import re
 from urllib.parse import unquote
 from config.patterns import (
     UPI_PATTERN, UPI_PATTERN_LOOSE, PAYMENT_GATEWAYS,
     PAYMENT_KEYWORDS, IFSC_PATTERN, BANK_ACCOUNT_PATTERN
 )
-
-
 COMMON_EMAIL_DOMAINS = {
     "gmail", "yahoo", "hotmail", "outlook", "icloud",
     "rediffmail", "protonmail", "live", "msn"
 }
+_JSON_UPI_KEYS = [
+    '"upiAccount":', '"vpa":', '"upi_id":', '"upiId":',
+    '"pa":', '"upiAddress":', '"paymentAddress":',
+]
+_BENE_NAME_LABELS = [
+    "UPI Name", "PhonePe Name", "Google Pay Name",
+    "Account Name", "Neft Account Name",
+]
+_ACCOUNT_LABELS = [
+    "Neft Account Number", "Account Number",
+]
 
 
 class Extractor:
@@ -20,9 +30,12 @@ class Extractor:
             return []
         decoded_text = unquote(text)
         strict = set(UPI_PATTERN.findall(decoded_text))
-        loose = set(UPI_PATTERN_LOOSE.findall(decoded_text))
+        strict_full = set(UPI_PATTERN.finditer(decoded_text))
+        strict = {m.group(0) for m in strict_full}
+
+        loose_full = {m.group(0) for m in UPI_PATTERN_LOOSE.finditer(decoded_text)}
         filtered_loose = {
-            m for m in loose
+            m for m in loose_full
             if m.split("@")[-1].lower() not in COMMON_EMAIL_DOMAINS
             and m.split("@")[-1] == m.split("@")[-1].lower()
             and not m.split("@")[0][0].isupper()
@@ -40,7 +53,65 @@ class Extractor:
         except Exception:
             pass
         return self._extract_upi(qr_decoded)
-    
+
+    def _extract_upi_from_json_fields(self, text):
+        if not text:
+            return []
+        upi_ids = []
+
+        for key in _JSON_UPI_KEYS:
+            idx = 0
+            while True:
+                idx = text.find(key, idx)
+                if idx == -1:
+                    break
+                val_start = idx + len(key)
+                while val_start < len(text) and text[val_start] in ' \t"\'\\':
+                    val_start += 1
+                val_end = val_start
+                while val_end < len(text) and text[val_end] not in '"\'\\,}' and text[val_end] != '\n':
+                    val_end += 1
+                val = text[val_start:val_end].strip()
+                if "@" in val and 5 < len(val) < 100:
+                    upi_ids.append(val)
+                idx = val_end
+
+        for m in re.finditer(r'pa=([^&"\'\\,\s]{3,100}@[^&"\'\\,\s]{2,30})', text):
+            candidate = m.group(1)
+            if "@" in candidate:
+                upi_ids.append(candidate)
+
+        return [u for u in upi_ids if "@" in u]
+
+    def _extract_beneficiary_names(self, html):
+        if not html:
+            return []
+        found = []
+        pattern = re.compile(
+            r'(%s).{0,300}?modal-message-address[^>]*>([^<]{1,80})<'
+            % "|".join(re.escape(l) for l in _BENE_NAME_LABELS),
+            re.DOTALL | re.IGNORECASE
+        )
+        for m in pattern.finditer(html):
+            label = m.group(1).strip().rstrip(":")
+            name  = m.group(2).strip()
+            if name:
+                found.append(f"{label}: {name}")
+        return list(dict.fromkeys(found))
+
+    def _extract_labeled_accounts(self, html):
+        if not html:
+            return []
+        found = []
+        pattern = re.compile(
+            r'(%s).{0,300}?modal-message-address[^>]*>(\d{9,18})<'
+            % "|".join(re.escape(l) for l in _ACCOUNT_LABELS),
+            re.DOTALL | re.IGNORECASE
+        )
+        for m in pattern.finditer(html):
+            found.append(m.group(2).strip())
+        return list(set(found))
+
     def _extract_bank_details(self, text):
         if not text:
             return {"ifsc_codes": [], "account_numbers": []}
@@ -81,24 +152,32 @@ class Extractor:
             qr_decoded    = entry.get("qr_decoded", "") or ""
             combined_text = url + " " + post_data + " " + response_body + " " + qr_decoded
 
-            upi_ids    = self._extract_upi(combined_text)
-            qr_upi_ids = self._extract_upi_from_qr(qr_decoded)
-            upi_ids    = sorted(list(set(upi_ids + qr_upi_ids)))
+            upi_ids  = self._extract_upi(combined_text)
+            upi_ids += self._extract_upi_from_json_fields(response_body)
+            upi_ids += self._extract_upi_from_json_fields(post_data)
+            upi_ids += self._extract_upi_from_qr(qr_decoded)
+            upi_ids  = sorted(list(set(upi_ids)))
 
             gateways     = self._extract_gateways(combined_text)
-            bank_details = self._extract_bank_details(combined_text)  
+            bank_details = self._extract_bank_details(combined_text)
+
+            beneficiary_names  = self._extract_beneficiary_names(response_body)
+            labeled_accounts   = self._extract_labeled_accounts(response_body)
+
+            all_accounts = list(set(bank_details["account_numbers"] + labeled_accounts))
 
             extracted.append({
-                "source": "network",
-                "url": url,
-                "method": entry.get("method", ""),
-                "upi_ids_found": upi_ids,
-                "gateways_found": gateways or entry.get("gateways_detected", []),
-                "post_data": post_data,
-                "response_body": response_body,
-                "qr_decoded": qr_decoded,
-                "ifsc_codes":      bank_details["ifsc_codes"],       
-                "account_numbers": bank_details["account_numbers"],  
+                "source":            "network",
+                "url":               url,
+                "method":            entry.get("method", ""),
+                "upi_ids_found":     upi_ids,
+                "gateways_found":    gateways or entry.get("gateways_detected", []),
+                "post_data":         post_data,
+                "response_body":     response_body,
+                "qr_decoded":        qr_decoded,
+                "ifsc_codes":        bank_details["ifsc_codes"],
+                "account_numbers":   all_accounts,
+                "beneficiary_names": beneficiary_names,
             })
         return extracted
 
@@ -106,28 +185,36 @@ class Extractor:
         if not html_content:
             return {}
         upi_ids      = self._extract_upi(html_content)
+        upi_ids     += self._extract_upi_from_json_fields(html_content)
+        upi_ids      = sorted(list(set(upi_ids)))
         gateways     = self._extract_gateways(html_content)
-        bank_details = self._extract_bank_details(html_content)  
+        bank_details = self._extract_bank_details(html_content)
         html_lower   = html_content.lower()
         keywords_found = [k for k in PAYMENT_KEYWORDS if k in html_lower]
+
+        beneficiary_names = self._extract_beneficiary_names(html_content)
+        labeled_accounts  = self._extract_labeled_accounts(html_content)
+        all_accounts      = list(set(bank_details["account_numbers"] + labeled_accounts))
+
         return {
-            "source": "html",
-            "upi_ids_found": upi_ids,
-            "gateways_found": gateways,
+            "source":            "html",
+            "upi_ids_found":     upi_ids,
+            "gateways_found":    gateways,
             "payment_keywords_found": keywords_found,
-            "ifsc_codes":      bank_details["ifsc_codes"],       
-            "account_numbers": bank_details["account_numbers"],  
+            "ifsc_codes":        bank_details["ifsc_codes"],
+            "account_numbers":   all_accounts,
+            "beneficiary_names": beneficiary_names,
         }
 
     def run(self, captured_requests, html_content, page_title, url, screenshot_path):
         network_findings = self._extract_from_requests(captured_requests)
         html_findings    = self._extract_from_html(html_content)
         summary = {
-            "url": url,
-            "page_title": page_title,
+            "url":            url,
+            "page_title":     page_title,
             "screenshot_path": screenshot_path,
             "network_findings": network_findings,
-            "html_findings": html_findings,
+            "html_findings":  html_findings,
             "total_payment_requests": len(network_findings),
             "all_upi_ids": sorted(list(set(
                 html_findings.get("upi_ids_found", []) +
@@ -137,13 +224,17 @@ class Extractor:
                 html_findings.get("gateways_found", []) +
                 [g for f in network_findings for g in f.get("gateways_found", [])]
             ))),
-            "all_ifsc_codes": sorted(list(set(     # ← add
+            "all_ifsc_codes": sorted(list(set(
                 html_findings.get("ifsc_codes", []) +
                 [i for f in network_findings for i in f.get("ifsc_codes", [])]
             ))),
-            "all_account_numbers": sorted(list(set( # ← add
+            "all_account_numbers": sorted(list(set(
                 html_findings.get("account_numbers", []) +
                 [a for f in network_findings for a in f.get("account_numbers", [])]
+            ))),
+            "all_beneficiary_names": sorted(list(set(
+                html_findings.get("beneficiary_names", []) +
+                [n for f in network_findings for n in f.get("beneficiary_names", [])]
             ))),
         }
         self.results.append(summary)

@@ -26,19 +26,21 @@ class Storage:
 
     def _setup_headers(self):
         summary_headers = [
-        "Website URL", "Page Title", "Total Requests",
-        "Payment API URLs", "UPI IDs Found", "Gateways Found",
-        "Bank IFSC Codes", "Account Numbers",        
-        "Screenshot Path", "Timestamp"
+            "Website URL", "Page Title", "Total Requests",
+            "Payment API URLs", "UPI IDs Found", "Gateways Found",
+            "Bank IFSC Codes", "Account Numbers",
+            "Beneficiary Names",          # NEW
+            "Screenshot Path", "Timestamp"
         ]
-        summary_widths = [35, 25, 15, 60, 35, 35, 30, 30, 45, 22]
+        summary_widths = [35, 25, 15, 60, 35, 35, 30, 30, 40, 45, 22]
 
         request_headers = [
             "Website URL", "Type", "Method", "API Endpoint",
             "Status", "Gateways Detected", "UPI IDs Found",
+            "Beneficiary Names",          # NEW
             "Post Data", "Response Body", "QR Decoded", "Timestamp"
         ]
-        request_widths = [30, 12, 10, 55, 10, 28, 28, 40, 60, 45, 22]
+        request_widths = [30, 12, 10, 55, 10, 28, 28, 35, 40, 60, 45, 22]
 
         self._write_headers(self.summary_sheet, summary_headers, summary_widths)
         self._write_headers(self.requests_sheet, request_headers, request_widths)
@@ -83,8 +85,9 @@ class Storage:
             "\n".join(sorted(payment_urls)),
             "\n".join(summary.get("all_upi_ids", [])),
             "\n".join(summary.get("all_gateways", [])),
-            "\n".join(summary.get("all_ifsc_codes", [])),       
-            "\n".join(summary.get("all_account_numbers", [])),  
+            "\n".join(summary.get("all_ifsc_codes", [])),
+            "\n".join(summary.get("all_account_numbers", [])),
+            "\n".join(summary.get("all_beneficiary_names", [])),
             summary.get("screenshot_path", ""),
             timestamp
         ]
@@ -92,15 +95,15 @@ class Storage:
         self.summary_sheet.append(row_data)
         row_num = self.summary_sheet.max_row
 
-        self.summary_sheet.row_dimensions[row_num].height = 100
-        for col in [4, 5, 6, 7, 8]:
+        self.summary_sheet.row_dimensions[row_num].height = 120
+        for col in [4, 5, 6, 7, 8, 9]:
             self.summary_sheet.cell(row=row_num, column=col).alignment = Alignment(
                 wrap_text=True, vertical="top"
             )
 
         if upi_ids:
             fill = PatternFill("solid", fgColor=UPI_HIT_BG)
-            for col in range(1, 11):
+            for col in range(1, 12):
                 self.summary_sheet.cell(row=row_num, column=col).fill = fill
 
         print(f"[Storage] Summary row saved for: {summary.get('url', '')}")
@@ -111,11 +114,12 @@ class Storage:
         QR_KEYWORDS = ["qr-code", "qr/", "/qr", "initiate/qr", "payment/initiate"]
 
         for entry in summary.get("network_findings", []):
-            upi_ids    = entry.get("upi_ids_found", [])
-            gateways   = entry.get("gateways_found", [])
-            qr_decoded = entry.get("qr_decoded", "") or ""
-            is_collect = entry.get("is_collect_request", False)
-            aggregator = entry.get("aggregator", None)
+            upi_ids          = entry.get("upi_ids_found", [])
+            gateways         = entry.get("gateways_found", [])
+            beneficiary_names = entry.get("beneficiary_names", [])
+            qr_decoded       = entry.get("qr_decoded", "") or ""
+            is_collect       = entry.get("is_collect_request", False)
+            aggregator       = entry.get("aggregator", None)
             is_qr = any(k in entry.get("url", "").lower() for k in QR_KEYWORDS)
 
             gateway_display = ", ".join(gateways)
@@ -130,15 +134,15 @@ class Storage:
                 entry.get("status", ""),
                 gateway_display,
                 ", ".join(upi_ids),
-                entry.get("post_data", "") or "",
-                entry.get("response_body", "") or "",
-                entry.get("qr_decoded", "") or "",
-                timestamp
+                "\n".join(beneficiary_names),         
+                entry.get("post_data", "") or "",      
+                entry.get("response_body", "") or "",  
+                entry.get("qr_decoded", "") or "",    
+                timestamp                              
             ]
 
             self.requests_sheet.append(row_data)
             row_num = self.requests_sheet.max_row
-
 
             if is_collect:
                 fill = PatternFill("solid", fgColor=COLLECT_HIT_BG)
@@ -154,10 +158,10 @@ class Storage:
                 fill = None
 
             if fill:
-                for col in range(1, 12):
+                for col in range(1, 13):
                     self.requests_sheet.cell(row=row_num, column=col).fill = fill
 
-            for col in [4, 8, 9, 10]:
+            for col in [4, 8, 9, 10, 11]:
                 self.requests_sheet.cell(row=row_num, column=col).alignment = Alignment(
                     wrap_text=True, vertical="top"
                 )
@@ -165,7 +169,6 @@ class Storage:
             self.requests_sheet.row_dimensions[row_num].height = 40
 
         print(f"[Storage] {len(summary.get('network_findings', []))} request rows saved")
-
 
     def save(self, summary):
         try:
@@ -176,7 +179,7 @@ class Storage:
             self.save_requests(summary)
         except Exception as e:
             print(f"[Storage] Error saving requests: {e}")
-        self._write_file(summary)  
+        self._write_file(summary)
 
     def _write_file(self, summary):
         from urllib.parse import urlparse
