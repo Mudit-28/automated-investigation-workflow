@@ -1,3 +1,14 @@
-playwright==1.60.0
-openpyxl==3.1.5
-pandas==2.2.2
+# Core browser automation
+playwright>=1.40.0
+
+# Excel report generation
+openpyxl>=3.1.0
+
+# HTTP client (for QR decoding from URLs + short URL resolution)
+httpx>=0.27.0
+
+# QR code decoding
+pyzbar>=0.1.9
+
+# Image processing (required by pyzbar)
+Pillow>=10.0.0
