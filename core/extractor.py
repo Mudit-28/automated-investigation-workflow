@@ -29,7 +29,6 @@ class Extractor:
         if not text:
             return []
         decoded_text = unquote(text)
-        strict = set(UPI_PATTERN.findall(decoded_text))
         strict_full = set(UPI_PATTERN.finditer(decoded_text))
         strict = {m.group(0) for m in strict_full}
 

@@ -3,6 +3,7 @@ import io
 import json
 import base64
 import re
+import httpx
 from config.patterns import (
     PAYMENT_KEYWORDS, NOISE_KEYWORDS, PAYMENT_GATEWAYS,
     UPI_PATTERN, UPI_COLLECT_PATTERNS, AGGREGATOR_PATTERNS
@@ -45,7 +46,6 @@ class NetworkMonitor:
 
     async def _follow_redirect(self, url):
         try:
-            import httpx
             async with httpx.AsyncClient(
                 follow_redirects=True,
                 timeout=5
@@ -133,14 +133,6 @@ class NetworkMonitor:
             if qr_decoded:
                 print(f"[Network] QR Decoded (base64 HTML): {qr_decoded}")
                 return qr_decoded
-            
-        if qr_decoded and "upi://" not in qr_decoded and "pa=" not in qr_decoded:
-            if qr_decoded.startswith("http"):
-                resolved = await self._follow_redirect(qr_decoded)
-                if "pa=" in resolved or "upi://" in resolved:
-                    print(f"[Network] UPI found after redirect: {resolved}")
-                    return resolved
-                return resolved
 
         return None
 

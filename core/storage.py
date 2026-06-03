@@ -3,6 +3,7 @@ from datetime import datetime
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
+from urllib.parse import urlparse
 
 
 HEADER_BG      = "1F4E79"   # Dark Blue
@@ -76,7 +77,6 @@ class Storage:
         ]))
 
         upi_ids  = summary.get("all_upi_ids", [])
-        gateways = summary.get("all_gateways", [])
 
         row_data = [
             summary.get("url", ""),
@@ -182,7 +182,6 @@ class Storage:
         self._write_file(summary)
 
     def _write_file(self, summary):
-        from urllib.parse import urlparse
         parsed       = urlparse(summary.get("url", ""))
         website_name = parsed.netloc.replace(".", "_").replace("www_", "")
         timestamp    = datetime.now().strftime("%Y%m%d_%H%M%S")
