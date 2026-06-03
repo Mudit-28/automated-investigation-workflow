@@ -7,7 +7,6 @@ class PageMonitor:
         self.screenshot = screenshot
         self.html_capture = html_capture
         self.network_monitor = network_monitor
-        self.monitored_pages = []
         self.last_screenshot_time = 0     
         self.screenshot_cooldown = 4      
         self.initial_url = None           
@@ -64,7 +63,6 @@ class PageMonitor:
             await asyncio.sleep(2)
 
             await self._safe_capture(popup, popup_url)
-            self.monitored_pages.append(popup_url)
             print(f"[Page Monitor] Popup captured: {popup_url}")
 
             popup.on("popup", lambda p: asyncio.ensure_future(
